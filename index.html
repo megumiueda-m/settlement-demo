@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>疑似カート＋決済デモ</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; background:#f9f9f9; }
+  h1,h2 { color:#333; }
+  .product, .cart-item { background:#fff; padding:10px; margin:10px 0; border-radius:6px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+  button { padding:5px 10px; border:none; border-radius:4px; background:#4CAF50; color:white; cursor:pointer; }
+  button:hover { background:#45a049; }
+  #cart, #purchaseHistory { margin-top:20px; }
+</style>
+</head>
+<body>
+
+<h1>商品一覧</h1>
+<div id="products"></div>
+
+<h2>カート</h2>
+<div id="cart"></div>
+<p>合計: ¥<span id="total">0</span></p>
+<button id="checkoutBtn">決済へ進む</button>
+
+<h2>購入履歴</h2>
+<div id="purchaseHistory"></div>
+
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+const stripePublicKey = "pk_test_XXXXXXXXXXXXXXXXXXXX"; // Stripeテスト公開キー
+const productsData = [
+  {id:1, name:"商品A", price:1000},
+  {id:2, name:"商品B", price:2000},
+  {id:3, name:"商品C", price:3000}
+];
+
+// 初期表示
+function displayProducts(){
+  const container = document.getElementById("products");
+  container.innerHTML = "";
+  productsData.forEach(p=>{
+    const div = document.createElement("div");
+    div.className="product";
+    div.innerHTML = `<strong>${p.name}</strong> ¥${p.price} <button onclick="addToCart(${p.id})">カートに追加</button>`;
+    container.appendChild(div);
+  });
+}
+
+// カート操作
+function getCart(){ return JSON.parse(localStorage.getItem("cart")||"[]"); }
+function setCart(cart){ localStorage.setItem("cart",JSON.stringify(cart)); displayCart(); }
+function addToCart(id){
+  const p = productsData.find(x=>x.id===id);
+  const cart = getCart();
+  cart.push(p);
+  setCart(cart);
+}
+
+function removeFromCart(index){
+  const cart = getCart();
+  cart.splice(index,1);
+  setCart(cart);
+}
+
+function displayCart(){
+  const cart = getCart();
+  const container = document.getElementById("cart");
+  container.innerHTML="";
+  let total=0;
+  cart.forEach((c,i)=>{
+    total+=c.price;
+    const div = document.createElement("div");
+    div.className="cart-item";
+    div.innerHTML=`${c.name} ¥${c.price} <button onclick="removeFromCart(${i})">削除</button>`;
+    container.appendChild(div);
+  });
+  document.getElementById("total").textContent = total;
+}
+
+// 決済（テストリンク擬似）
+document.getElementById("checkoutBtn").addEventListener("click",()=>{
+  const cart = getCart();
+  if(cart.length===0){ alert("カートが空です"); return; }
+
+  // 疑似購入ID作成
+  const purchaseId = "PUR-"+Date.now();
+  const total = cart.reduce((sum,c)=>sum+c.price,0);
+
+  // 購入履歴保存
+  const history = JSON.parse(localStorage.getItem("purchaseHistory")||"[]");
+  history.push({id:purchaseId, items:cart, total});
+  localStorage.setItem("purchaseHistory",JSON.stringify(history));
+
+  // カートクリア
+  localStorage.removeItem("cart");
+  displayCart();
+  displayPurchaseHistory();
+
+  alert(`決済完了！購入ID: ${purchaseId}\n合計: ¥${total}`);
+  // 本来ここで Stripe チェックアウトページに遷移できる（テストモード）
+  // window.location.href = "https://checkout.stripe.com/pay/cs_test_XXXXXXXXXXXX";
+});
+
+function displayPurchaseHistory(){
+  const history = JSON.parse(localStorage.getItem("purchaseHistory")||"[]");
+  const container = document.getElementById("purchaseHistory");
+  container.innerHTML="";
+  history.forEach(h=>{
+    const div = document.createElement("div");
+    div.className="cart-item";
+    div.innerHTML=`購入ID: ${h.id} | 合計: ¥${h.total} | 商品: ${h.items.map(x=>x.name).join(", ")}`;
+    container.appendChild(div);
+  });
+}
+
+// 初期表示
+displayProducts();
+displayCart();
+displayPurchaseHistory();
+</script>
+</body>
+</html>
